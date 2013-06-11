@@ -1,0 +1,4 @@
+cron:
+- description: 3 minute check for games
+  url: /
+  schedule: every 3 minutes
