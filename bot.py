@@ -25,79 +25,120 @@ from google.appengine.ext.webapp import template
 from google.appengine.ext.webapp import xmpp_handlers
 
 import re, string, time
-from bs4 import BeautifulSoup
-
-import logging
 logging.basicConfig(level=logging.DEBUG,)
 
-#import games
-import gamedb
+from gamedb import Game
+from userdb import User
+
 from ytmt import Ytmt
 from notifier import Notifier
 
 HELP_MSG = ("I am the game alert bot."
-            "\nRegister a user for alerts by typing 'add' "
-            "\nStop receiving alerts by typing 'remove'."
+            "\nRegister a user for alerts by typing 'add {ytmt-id}' "
+            "\nStop receiving alerts by typing 'remove {ytmt-id}|{*ALL}'."
             "\nGet a list of all your games by typing 'list' "
             "\nLearn more... go to %s/")
 
-
-user_ids = { "markp1999" : "markrp@gmail.com", "Spann" : "dpfilter@gmail.com"}
-
-RetryInterval = 60
-google_id= 'markrp@gmail.com'
 
 
 class XmppHandler(xmpp_handlers.CommandHandler):
   """Handler class for all XMPP activity."""
 
   def help(self, message=None,message_subcmd=None):
-    if message_subcmd == None and len(message.arg.split()) > 1:
+    if len(message.arg.split()) > 1:
         message_subcmd = message.arg.upper().strip().split()[1]
     if message_subcmd:
         if (message_subcmd == "LIST"):
             message.reply("""LIST SYNTAX:
             -  "list games" - Show all games you are participating in
-            -  "list sites" - Show all sites where you have registered users""")
+            -  "list users" - Show all registered YTMT users""")
     # Show help text
     message.reply(HELP_MSG % (self.request.host_url,))
 
-      #
+  #
   #  Process incoming message
   def text_message(self, message=None):
-    im_from = db.IM("xmpp", message.sender)
-
     message_cmd = message.arg.upper().strip().split()[0]
     
     if (message_cmd == "HELP"):
         self.help(message)
     elif (message_cmd == "LIST"):
-        self.list_games(message)
-    elif (message_cmd == "DUMP"):
-        self.dump_games(message,)
+        if ( len(message.arg.split()) > 1):
+            message_subcmd = message.arg.upper().strip().split()[1]
+            if message_subcmd:
+                if (message_subcmd == "USERS"):
+                    self.list_users(message)
+                else:
+                    self.list_games(message)            
+        else:
+            self.list_games(message)
+    elif (message_cmd == "ADD"):
+        self.add_user(message)
+    elif (message_cmd == "REMOVE"):
+        self.remove_user(message)
     else:
       self.help(message)
     
+    
   def list_games(self, message=None):
     # Show help text
-    message.reply("List of games coming up...")
     #
     # List the games in the Db
     games_now = db.GqlQuery("SELECT * FROM Game")
-    for g in games_now:
-        notification =  "It's your turn against " + g.opponent +" in " + g.type + " game "+ g.id + " - " + g.clicklink 
-        Notifier().notify(google_id, notification) 
-
-  def dump_games(self, message=None, name=None):
-    if name == None and len(message.arg.split()) > 1:
-        message_subcmd = message.arg.strip().split()[1]
+    if ( games_now.count() == 0  ) :
+        notification = "No games in database"
     else:
-        name = "markp1999"
-        
-    # Show help text
-    message.reply("HTML dump coming up...")
-    message.reply( Ytmt.ReadGamesPageFromWeb( name ) )
+        notification = ""
+        for g in games_now:
+                if (g.yourturn == True):
+                    preamble = "It's your turn against "
+                else:
+                    preamble = "It's NOT your turn against "
+                notification = notification + ", " + preamble + g.opponent +" in " + g.type + " game "+ g.id + " - " + g.clicklink 
+
+    message.reply(notification) 
     
+  def list_users(self, message=None):
+    #
+    # List the games in the Db
+    google_id =  db.IM("xmpp", message.sender).address.split('/')[0]
+    users = db.GqlQuery("SELECT * FROM User WHERE google_id = :1", google_id)
+    if ( users.count() == 0  ) :
+        notification = "You haven't registered any YTMT ids.  Use the 'add' command to register an Id."
+    else:
+        notification = "You are monitoring: "
+        for u in users:
+                notification = notification + ", " + u.ytmt_id
+    message.reply(notification) 
+    
+  def add_user(self, message=None, name=None):
+    if len(message.arg.split()) > 1:
+        name = message.arg.strip().split()[1]
+        new_user = User()
+        im_from = db.IM("xmpp", message.sender)
+        new_user.google_id = im_from.address.split('/')[0]
+        new_user.ytmt_id = name    
+        new_user.put()
+        logging.debug( "Added " + name + " for : " + new_user.google_id  )
+        message.reply("Added user " + name + " for google user: " + new_user.google_id + ").")
+    else:
+        message.reply("No name given.\nSyntax: add {ytmt-user}")
+
+  def remove_user(self, message=None, name=None):
+    if len(message.arg.split()) > 1:
+        name = message.arg.strip().split()[1]
+        users = db.GqlQuery("SELECT * FROM User WHERE google_id = :1", google_id)
+        for u in users:
+            if (name == "*ALL" or name == u.ytmt_id ):
+                logging.debug( "Deleting " + u.ytmt_id )
+                u.delete()
+        if (name == "*ALL"):
+            message.reply("Removed all ytmt ids for this user.")
+        else:
+            message.reply("Removed user " + name  + ".")
+    else:
+        message.reply("No name given.\nSyntax: remove {ytmt-user}|{*ALL}")
+        
 #
 # Save away the old games list to a dictionary and clear the database
 def move_gamesDb_to_dict():
@@ -108,43 +149,84 @@ def move_gamesDb_to_dict():
         g.delete()
     return old_dict
 
-
+#
+# Save away the old games list to a dictionary and clear the database
+def save_game(g):
+    this_game = Game()
+    this_game.player = g.player
+    this_game.opponent = g.opponent
+    this_game.id = g.id
+    this_game.type = g.type
+    this_game.clicklink= g.clicklink
+    this_game.yourturn= g.yourturn
+    this_game.put()
     
 class RootHandler(webapp.RequestHandler):
     
     """Displays a list of games message."""
     def get(self):
-        self.response.out.write('<html><body><ul>')
+        self.response.out.write('<html><body>')
         #
-        # Get the current list of games in a web document
-        s = Ytmt.ReadYourGamesPageFromWeb ()
-        if ( s != None ):
-            #
-            # Save away the old games list to a dictionary and clear the database
-            old_dict = move_gamesDb_to_dict()
-            #
-            # Parse the list of games and load into the database
-            Ytmt.parseYourGamesPage(s)
-            print "<br>================================================="
-            #
-            # Compare the old and new games list 
-            games_now = db.GqlQuery("SELECT * FROM Game")
-            for g in games_now:
-                #
-                # If this is an old game just print it - dont send IM
-                if ( old_dict.has_key(g.id) == True ):
-                    notification =  "It's still your turn against " + g.opponent +" in " + g.type + " game "+ g.id                  
-                    self.response.out.write( "<li>" + notification + "<br/><a href=\"" + g.clicklink + "\">"+ g.clicklink  + "</a>")                    
-                else:
-                # Else, new game - send a notification
-                    notification =  "It's your turn against " + g.opponent +" in " + g.type + " game "+ g.id + " - " + g.clicklink 
-                    self.response.out.write( "<li>" + "It's your turn against " + g.opponent +" in " + g.type + " game "+ g.id + "<br><a href=\"" + g.clicklink + "\">"+ g.clicklink + "</a>")
-                    Notifier().notify(google_id, notification) 
-            print "<br>================================================="
+        # For each user get the current list of games in a web document
+        users = db.GqlQuery("SELECT * FROM User")
+        if ( users.count() == 0  ) :
+            logging.debug(  "No users registered " )
+            self.response.out.write( "<h2>No Users Registered</h2>" )      
+            self.response.out.write( "To register YTMT ids, use google talk to connect to gamealertbot@appspot.com ")
+            self.response.out.write("then use the 'add {ytmt_id}' command to register your YTMT id.")
+
         else:
-            self.response.out.write( "No games to play or web access failed")
-        
-        self.response.out.write(   "</ul></body></html>"   )
+            for u in users:
+                logging.debug(  "Processing " + u.ytmt_id)
+                name = u.ytmt_id
+                google_id = u.google_id    
+                self.response.out.write( "<h2>" + name + "'s Turn</h2>")      
+                #
+                # Download the user's overview page
+                s = Ytmt.ReadGamesPage_NotLoggedIn( name ) 
+                if ( s != None ):
+                    #
+                    # Save away the old games list to a dictionary and clear the database
+                    old_dict = move_gamesDb_to_dict()
+                                    
+                    #
+                    self.response.out.write( "<hr>" )
+                    self.response.out.write( "<ul>" )
+                    # First games where it is your turn
+                    for g in Ytmt.FindGamesinPage_NotLoggedIn( name, True, s) :
+                        save_game(g) # write game to database
+                        #
+                        # Compare the old and new games list 
+                        # If this is an old game just print it - dont send IM
+                        game_details = g.opponent +" in " + g.type + " game "+ g.id + "<br/><a href=\"" + g.clicklink + "\">"+ g.clicklink  + "</a>"
+                        if ( old_dict.has_key(g.id) == True ):
+                            notification =  g.player + " still your turn against " + game_details 
+                            self.response.out.write( "<li>" + notification )                    
+                        else:
+                        # Else, new game - send a notification
+                            notification =  g.player + " it's now your turn against " + game_details
+                            self.response.out.write( "<li><b>" + notification )
+                            Notifier().notify(google_id, notification) 
+                            
+                    self.response.out.write( "</ul>" )
+                    self.response.out.write( "<hr>" )
+                    self.response.out.write( "<h2>" + name + "'s Opponent's Turn</h2>")                      
+                    self.response.out.write( "<ul>" )
+                    #
+                    # List games where it's not your turn 
+                    for g in Ytmt.FindGamesinPage_NotLoggedIn( name, False, s) :  
+                        save_game(g) # write game to database
+                        game_details = g.player +" in " + g.type + " game "+ g.id + "<br/><a href=\"" + g.clicklink + "\">"+ g.clicklink  + "</a>"                 
+                        notification =  g.opponent + "'s turn against " + game_details 
+                        self.response.out.write( "<li>" + notification )                    
+
+                    self.response.out.write( "</ul>" )                
+                    self.response.out.write( "<hr>" )            
+                    
+                else:
+                    self.response.out.write( "No games to play or web access failed")
+                
+        self.response.out.write(   "</body></html>"   )
 
 
 def main():

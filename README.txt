@@ -11,4 +11,4 @@ ON WINDOWS
 run...
 "C:\Program Files (x86)\Google\google_appengine\appengine_launcher.bat"
 
-python C:\ProgramFilesx86\Google\google_appengine\appcfg.py update .
+python C:\ProgramFilesx86\Google\google_appengine\appcfg.py update ..\ytmt

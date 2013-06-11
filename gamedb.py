@@ -1,5 +1,3 @@
-import re
-import logging
 from google.appengine.ext import db
 
 class Game(db.Model):
@@ -7,5 +5,6 @@ class Game(db.Model):
     id = db.StringProperty()
     clicklink = db.StringProperty()
     type = db.StringProperty()
+    player = db.StringProperty()
     opponent = db.StringProperty()
-    yourturn = db.BooleanProperty()
+    yourturn = db.BooleanProperty()    
