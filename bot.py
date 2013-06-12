@@ -38,7 +38,7 @@ HELP_MSG = ("I am the game alert bot.  Use the following commands to control you
             "\n   'remove {ytmt-id}|{*ALL}' - Stop receiving alerts for one or all users."
             "\n   'list users' - Get a list of all your registered users"
             "\n   'list games' - Get a list of all games for your registered users"
-            "\nLearn more... go to %s/")
+            "\To see all games and users being monitored go to %s/")
 
 
 
@@ -128,7 +128,7 @@ class XmppHandler(xmpp_handlers.CommandHandler):
         new_user.ytmt_id = name    
         new_user.put()
         logging.debug( "Added " + name + " for : " + new_user.google_id  )
-        message.reply("Added user " + name + " for google user: " + new_user.google_id + ".")
+        message.reply("Added user '" + name + "'.  Alerts will be sent to: " + new_user.google_id + ".")
     else:
         message.reply("No name given.\nSyntax: add {ytmt-user}")
 
@@ -143,9 +143,9 @@ class XmppHandler(xmpp_handlers.CommandHandler):
                 logging.debug( "Deleting " + u.ytmt_id )
                 u.delete()
         if (name == "*ALL"):
-            message.reply("Removed all ytmt ids for this user.")
+            message.reply("Removed all ytmt ids for :" + google_id)
         else:
-            message.reply("Removed user " + name  + ".")
+            message.reply("Removed user '" + name  + "'.  No more alerts will be sent to " + google_id + " about '" + name + "'.")
     else:
         message.reply("No name given.\nSyntax: remove {ytmt-user}|{*ALL}")
         
@@ -236,13 +236,13 @@ class RootHandler(webapp.RequestHandler):
                     #
                     # Now list games where it's not your turn 
                     self.response.out.write( "<h2>" + name + "'s Opponent's Turn (alerting to " +google_id+ ")</h2>")      
-                    self.response.out.write( "<ul>" )
                     #
                     # List games where it's not your turn 
                     games = Ytmt.FindGamesinPage_NotLoggedIn( name, False, s) 
                     if (len(games) == 0):
                         self.response.out.write( "(No games)"  )                    
                     else:
+                        self.response.out.write( "<ul>" )
                         for g in games:
                             save_game(g) # write game to database
                             game_details = g.player +" in " + g.type + " game "+ g.id + "<br/><a href=\"" + g.clicklink + "\">"+ g.clicklink  + "</a>"                 
