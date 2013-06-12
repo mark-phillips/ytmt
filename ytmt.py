@@ -20,7 +20,6 @@ class Ytmt():
         handle = None
         try:
             logging.debug( """Fetching At:  %02d:%02d""" % (time.localtime()[3], time.localtime()[4] ))
-
             url = PROFILE_INFORMATION_PREFIX + name + PROFILE_INFORMATION_SUFFIX
             response = urllib2.urlopen(url)
             s = response.read()
@@ -49,7 +48,13 @@ class Ytmt():
             whoseTurn= "Opponent's turn " + name
         #
         # Find the appropriate table
-        table = soup.find(text=whoseTurn).findPrevious('table')
+        txt = soup.find(text=whoseTurn)
+        #
+        # Bomb out if no data found for user
+        if (txt) :
+            table = txt.findPrevious('table')
+        else:
+            return []
         #logging.debug( table.prettify() )
         for row in table.findAll('tr',recursive=True):
             #logging.debug( row )
