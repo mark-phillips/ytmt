@@ -86,10 +86,16 @@ class XmppHandler(xmpp_handlers.CommandHandler):
     
   def list_games(self, message=None):
     logging.debug(  "processing 'list games' command" )
-
-    # Show help text
     #
-    # List the games in the Db
+    # List the games in the Db 
+    # TODO - need to limit to current user's registrations
+    # google_id =  db.IM("xmpp", message.sender).address.split('/')[0]
+    # users = db.GqlQuery("SELECT * FROM User WHERE google_id = :1", google_id)
+    # if ( users.count() == 0  ) :
+        # notification = "You haven't registered any YTMT ids.  Use the 'add' command to register an Id."
+    # else:
+
+    
     games_now = db.GqlQuery("SELECT * FROM Game")
     if ( games_now.count() == 0  ) :
         notification = "No games in database"
@@ -101,13 +107,12 @@ class XmppHandler(xmpp_handlers.CommandHandler):
                 else:
                     preamble = "It's NOT " + g.player + "'s turn against "
                 notification = notification + ", " + preamble + g.opponent +" in " + g.type + " game "+ g.id + " - " + g.clicklink 
-
     message.reply(notification) 
     
   def list_users(self, message=None):
     logging.debug(  "processing 'list users' command" )
     #
-    # List the games in the Db
+    # List the users in the Db
     google_id =  db.IM("xmpp", message.sender).address.split('/')[0]
     users = db.GqlQuery("SELECT * FROM User WHERE google_id = :1", google_id)
     if ( users.count() == 0  ) :
@@ -220,13 +225,13 @@ class RootHandler(webapp.RequestHandler):
                             save_game(g) # write game to database
                             #
                             # Compare the old and new games list 
-                            # If this is an old game just print it - dont send IM
+                            # If this is an old game and it was your turn last time then just print it - dont send IM
                             game_details = g.opponent +" in " + g.type + " game "+ g.id + "<br/><a href=\"" + g.clicklink + "\">"+ g.clicklink  + "</a>"
-                            if ( old_dict.has_key(g.id) == True ):
+                            if ( old_dict.has_key(g.id) == True and old_dict[g.id].yourturn == true):
                                 notification =  g.player + " still your turn against " + game_details 
                                 self.response.out.write( "<li>" + notification )                    
                             else:
-                            # Else, new game - send a notification
+                            # Else, new game or newly your turn - send a notification
                                 notification =  g.player + " it's now your turn against " + game_details
                                 self.response.out.write( "<li><b>" + notification )
                                 Notifier().notify(google_id, notification) 
