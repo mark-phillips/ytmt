@@ -1,4 +1,4 @@
 cron:
-- description: 3 minute check for games
+- description: 5 minute check for games
   url: /
-  schedule: every 3 minutes
+  schedule: every 5 minutes
