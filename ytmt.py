@@ -30,25 +30,25 @@ class Ytmt():
         except:
             logging.debug(  """COMMS ERROR At:  %02d:%02d""" % (time.localtime()[3], time.localtime()[4] ) )
             return None
-        
+
     ########################################################################
-    #   Parse games page to get a list of games 
+    #   Parse games page to get a list of games
     ########################################################################
     @staticmethod
     def FindGamesinPage_NotLoggedIn (name, isItYourTurn, page) :
         games = []
         #
-        #  Get Table Rows 
+        #  Get Table Rows
         soup = BeautifulSoup(page)
         #
         #  Whose turn are we looking for?
         if isItYourTurn:
-            whoseTurn= "Turn " + name
+            Turn= "Turn " + name
         else:
-            whoseTurn= "Opponent's turn " + name
+            Turn= "Opponent's turn " + name
         #
         # Find the appropriate table
-        txt = soup.find(text=whoseTurn)
+        txt = soup.find(text=Turn)
         #
         # Bomb out if no data found for user
         if (txt) :
@@ -59,31 +59,47 @@ class Ytmt():
         for row in table.findAll('tr',recursive=True):
             #logging.debug( row )
             column = row.findAll('td',recursive=False)
-            if (column[0]): 
+            if (column[0]):
                 #
                 # Ignore the row if it doesn't have > 2 columns
                 if (len(column) > 2):
                     this_game = Game()
-                    
+
                     opponent = column[0].contents[0][2:] # Name starts in 2nd character
                     if (column[1].a) :
                         type = unicode(column[1].contents[1] ) # Skip the hyperlink if found
                     else:
                         type = unicode(column[1].contents[0] )  # or use contents
-                    relpath = column[2].a['href'] 
+                    relpath = column[2].a['href']
                     number = relpath.split("gamenumber=")[1]
                     link = "http://www.yourturnmyturn.com/" + type + "/play.php?gamenumber=" + number
-                    yourturn = False
 
                     this_game.player=name
                     this_game.opponent=opponent
-                    this_game.id = number
+                    this_game.game = number
                     this_game.type = type
                     this_game.clicklink=link
-                    this_game.yourturn=isItYourTurn
+                    if isItYourTurn:
+                        this_game.whoseturn=name
+                    else:
+                        this_game.whoseturn=opponent
                     games.append(this_game)
 
         return games
 
-            
-            
+
+    ########################################################################
+    #   Parse games page to get a list of games where it is the users turn
+    ########################################################################
+    @staticmethod
+    def FindGamesinPage_YourTurn (name, page) :
+        return Ytmt.FindGamesinPage_NotLoggedIn (name, True, page)
+
+    ########################################################################
+    #   Parse games page to get a list of games where it is opponents turn
+    ########################################################################
+    @staticmethod
+    def FindGamesinPage_OpponentsTurn (name, page) :
+        return Ytmt.FindGamesinPage_NotLoggedIn (name, False, page)
+
+

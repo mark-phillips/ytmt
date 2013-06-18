@@ -17,7 +17,7 @@ def main():
         for g in games:   # Go through the list of games
             #
             # Send a notification
-            if (g.yourturn == True):
+            if (g.whoseturn== g.player):
                 preamble = g.player + " it's your turn against "
             else:
                 preamble = g.player + " it's NOT your turn against "
