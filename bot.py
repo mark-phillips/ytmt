@@ -38,7 +38,7 @@ HELP_MSG = ("I am the game alert bot.  Use the following commands to control you
             "\n   'remove {ytmt-id}|{*ALL}' - Stop receiving alerts for one or all users."
             "\n   'list users' - Get a list of all your registered users"
             "\n   'list games' - Get a list of all games for your registered users"
-            "\To see all games and users being monitored go to %s/")
+            "\To see all games and users being monitored go to %s")
 
 
 
@@ -56,7 +56,8 @@ class XmppHandler(xmpp_handlers.CommandHandler):
             -  "list games" - Show all games you are participating in
             -  "list users" - Show all registered YTMT users""")
     # Show help text
-    message.reply(HELP_MSG % (db.IM("xmpp", message.sender).address.split('/')[0], self.request.host_url))
+    google_user = db.IM("xmpp", message.sender).address.split('/')[0]
+    message.reply(HELP_MSG % (google_user, self.request.host_url + "?google_user=" + google_user))
 
   #
   #  Process incoming message
@@ -154,16 +155,21 @@ class XmppHandler(xmpp_handlers.CommandHandler):
     else:
         message.reply("No name given.\nSyntax: remove {ytmt-user}|{*ALL}")
 
-#
-# Save away the old games list to a dictionary and clear the database
-def move_gamesDb_to_dict(player):
+#                        for key, g in games :
+
+# Save away the old games list to a dictionary
+def copy_gamesDb_to_dict_and_purge(player, currentgames):
     old_dict = {}
     oldgames = db.GqlQuery("SELECT * FROM Game  WHERE player = :1", player)
     for g in oldgames:
         old_dict[g.game] = g
-        g.delete()
-        logging.debug(  "cleared game " + g.game + " " + player)
+        #
+        # Purge games from the database where it's not your turn any more
+        if (len(currentgames) == 0 or currentgames.has_key(g.game) == False):
+            g.delete()
+            logging.debug(  "cleared game " + g.game + " " + player)
     return old_dict
+
 
 #
 # Save away the game
@@ -214,22 +220,23 @@ class RootHandler(webapp.RequestHandler):
                 # Download the user's overview page
                 s = Ytmt.ReadGamesPage_NotLoggedIn( name )
                 if ( s != None ):
-                    #
-                    # Save away the old "your turn" games list for this user to
-                    # a dictionary and clear the database
-                    old_dict = move_gamesDb_to_dict(name)
 
                     #
                     #
                     # First parse out games where it is your turn
                     games = Ytmt.FindGamesinPage_YourTurn( name, s)
+                    #
+                    # Save away the old "your turn" games list for this user to
+                    # a dictionary and clear the database
+                    old_dict = copy_gamesDb_to_dict_and_purge(name, games)
                     if (len(games) == 0):
                         self.response.out.write( "(No games)"  )
                     else:
                         self.response.out.write( "<hr>" )
                         self.response.out.write( "<ul>" )
 
-                        for g in games :
+                        for key in games:
+                            g = games[key]
                             #
                             # Compare the old and new games list
                             # TODO: do this by querying the database & do away with dictionary
@@ -242,12 +249,12 @@ class RootHandler(webapp.RequestHandler):
                                 self.response.out.write( "<li>" + notification )
                             else:
                             # Else, new game or newly your turn - send the notification and save the game
-                                save_game(g) # write game to database
                                 logging.debug(  "saved game " + g.game + " " + name)
                                 notification =  g.player + " it's now your turn against "
                                 self.response.out.write( "<li><b>" + notification + game_details)
                                 Notifier().notify(google_id, notification + IM_game_details)
                                 logging.debug(  "Notifying google_id: " + notification + game_details)
+                                save_game(g) # write game to database
 
                         self.response.out.write( "</ul>" )
                         self.response.out.write( "<hr>" )
@@ -261,7 +268,8 @@ class RootHandler(webapp.RequestHandler):
                         self.response.out.write( "(No games)"  )
                     else:
                         self.response.out.write( "<ul>" )
-                        for g in games:
+                        for key in games:
+                            g = games[key]
                             g.clicklink = g.clicklink.replace(" ", "+")
                             game_details = g.player +" in " + g.type + " game <a href=\"" + g.clicklink + "\">"+ g.game  + "</a>"
                             notification =  g.opponent + "'s turn against " + game_details

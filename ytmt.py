@@ -36,7 +36,7 @@ class Ytmt():
     ########################################################################
     @staticmethod
     def FindGamesinPage_NotLoggedIn (name, isItYourTurn, page) :
-        games = []
+        games = {}
         #
         #  Get Table Rows
         soup = BeautifulSoup(page)
@@ -83,7 +83,7 @@ class Ytmt():
                         this_game.whoseturn=name
                     else:
                         this_game.whoseturn=opponent
-                    games.append(this_game)
+                    games[this_game.game] = this_game
 
         return games
 
