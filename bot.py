@@ -192,12 +192,9 @@ class RootHandler(webapp.RequestHandler):
             users = db.GqlQuery("SELECT * FROM User WHERE google_id = :1", google_user)
         else :
             #
-            # For each user get the current list of games in a web document
+            # Forget the current list of games in a web document for all users
             users = db.GqlQuery("SELECT * FROM User")
 
-        #
-        # For each user get the current list of games in a web document
-        users = db.GqlQuery("SELECT * FROM User")
         #
         # Handle case of no users being registered
         if ( users.count() == 0  ) :
@@ -249,9 +246,8 @@ class RootHandler(webapp.RequestHandler):
                                 logging.debug(  "saved game " + g.game + " " + name)
                                 notification =  g.player + " it's now your turn against "
                                 self.response.out.write( "<li><b>" + notification + game_details)
-                                Notifier().notify(google_id, notification + + IM_game_details)
+                                Notifier().notify(google_id, notification + IM_game_details)
                                 logging.debug(  "Notifying google_id: " + notification + game_details)
-
 
                         self.response.out.write( "</ul>" )
                         self.response.out.write( "<hr>" )
