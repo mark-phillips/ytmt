@@ -1,4 +1,4 @@
-In Bash 
+In Bash
 
 To upload...
 
@@ -12,3 +12,18 @@ run...
 "C:\Program Files (x86)\Google\google_appengine\appengine_launcher.bat"
 
 python C:\ProgramFilesx86\Google\google_appengine\appcfg.py update ..\ytmt
+
+=======================================================================
+
+Project Structure
+=================
+
+bot.py - Logic for responding to requests
+ytmt.py - Scraping ytmt site
+game.py - abstract class containing game details
+
+gamedb.py - db model class
+userdb.py - db model class
+
+notifier.py - send xmpp notifications
+web.py - Serving web pages
