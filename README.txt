@@ -21,9 +21,9 @@ Project Structure
 bot.py - Logic for responding to requests
 ytmt.py - Scraping ytmt site
 game.py - abstract class containing game details
+notifier.py - send xmpp notifications
 
 gamedb.py - db model class
 userdb.py - db model class
 
-notifier.py - send xmpp notifications
 web.py - Serving web pages

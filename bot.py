@@ -241,7 +241,6 @@ class RootHandler(webapp.RequestHandler):
                             # Compare the old and new games list
                             # TODO: do this by querying the database & do away with dictionary
                             # If this is an old game and it was your turn last time then just print it - dont send IM
-                            g.clicklink = g.clicklink.replace(" ", "+")
                             game_details = g.opponent +" in " + g.type + " game <a href=\"" + g.clicklink + "\">"+ g.game  + "</a>"
                             IM_game_details = g.opponent +" in " + g.type + " game "+ g.clicklink
                             if ( old_dict.has_key(g.game) == True and old_dict[g.game].whoseturn == g.player):

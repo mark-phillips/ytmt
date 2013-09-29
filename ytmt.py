@@ -67,12 +67,13 @@ class Ytmt():
 
                     opponent = column[0].contents[0][2:] # Name starts in 2nd character
                     if (column[1].a) :
-                        type = unicode(column[1].contents[1] ) # Skip the hyperlink if found
+                        type = unicode(column[1].contents[1] ).strip() # Skip the hyperlink if found
                     else:
-                        type = unicode(column[1].contents[0] )  # or use contents
+                        type = unicode(column[1].contents[0] ).strip()  # or use contents
                     relpath = column[2].a['href']
                     number = relpath.split("gamenumber=")[1]
                     link = "http://www.yourturnmyturn.com/" + type + "/play.php?gamenumber=" + number
+                    link = link.replace(" ", "+")
 
                     this_game.player=name
                     this_game.opponent=opponent
